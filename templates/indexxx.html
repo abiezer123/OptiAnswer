@@ -1,0 +1,109 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OptiAnswer</title>
+  <link rel="icon" href="{{ url_for('static', filename='images/logo.png') }}" type="image/png">
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: linear-gradient(to bottom,  #ffffff,#e6f7f7);
+      margin: 0;
+      padding: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      flex-direction: column;
+    }
+
+    .container {
+      text-align: center;
+      max-width: 100%;
+      margin: auto;
+    }
+
+    h1{
+      color: #87d9c8;
+    }
+
+    .logo {
+      width: 150px;
+      height: 150px;
+      border-radius: 50%;
+      margin-bottom: 0px;
+      background-color: #9ee0d3;
+    }
+
+    .chat-button {
+      background-color: #87d9c8;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 20px;
+      color: white;
+      cursor: pointer;
+      font-size: 16px;
+    }
+
+    .chat-button:hover {
+      background-color: #6bc1a9;
+    }
+
+    .cards {
+      display: flex;
+      justify-content: space-around;
+      margin-top: 30px;
+      flex-wrap: wrap;
+      gap: 20px;
+    }
+
+    .card {
+      background-color: white;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      border-radius: 10px;
+      padding: 20px;
+      width: 250px;
+      text-align: center;
+    }
+
+    .highlight {
+      border: 2px solid #00aaff;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <img src="{{ url_for('static', filename='images/logo.png') }}" alt="OptiAnswer Avatar" class="logo">
+      <h1>Meet OptiAnswer</h1>
+      <p>Your friendly AI assistant ready to help with all your questions</p>
+      <button class="chat-button">Start Chatting</button>
+    </div>
+
+    <div class="cards">
+      <div class="card">
+        <h3>Emotional Support</h3>
+        <p>Offer comforting replies to common worries and a safe space to express feelings without judgment. We also give gentle advice to help with everyday struggles.</p>
+      </div>
+      <div class="card highlight">
+        <h3>Fun</h3>
+        <p>Engaging casual conversations, jokes, and fun facts. Interactive elements to lighten the mood and reduce stress.</p>
+      </div>
+      <div class="card">
+        <h3>Privacy & 24/7 Availability</h3>
+        <p>Ensures full anonymity—no personal details needed. Enjoy a secure, judgment-free chat that's available anytime, anywhere.</p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    document.querySelector('.chat-button').addEventListener('click', function() {
+      window.location.href = "/main";
+    });
+  </script>
+</body>
+</html>

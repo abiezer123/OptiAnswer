@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Opti Answer</title>
+    
+    <script defer src="{{ url_for('static', filename='signin.js') }}"></script>
+</head>
+
+<style>
+    /* General Styles */
+body {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    background-color: #f8f8f8;
+    font-family: Arial, sans-serif;
+}
+
+/* Container Card */
+.container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+}
+
+.card {
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+    padding: 30px;
+    width: 350px;
+    text-align: center;
+    position: relative;
+}
+
+/* Logo Positioning */
+.logo-container {
+    position: absolute;
+    top: -50px;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+.logo {
+    width: 100px;
+    height: auto;
+}
+
+h2 {
+    margin-top: 40px;
+    font-size: 20px;
+    font-weight: normal;
+    color: #000;
+}
+
+h2 strong {
+    font-weight: bold;
+}
+
+/* Form Styles */
+form {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 15px;
+}
+
+input {
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    width: 100%;
+    font-size: 14px;
+}
+
+button {
+    background-color: #3b6354;
+    color: white;
+    padding: 10px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+button:hover {
+    background-color: #315347;
+}
+
+/* Login Link */
+p {
+    font-size: 14px;
+    color: #666;
+}
+
+a {
+    color: #3b6354;
+    text-decoration: none;
+    font-weight: bold;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
+/* Divider */
+.divider {
+    margin: 20px 0;
+    color: #aaa;
+    font-size: 12px;
+    text-transform: uppercase;
+}
+
+/* Social Buttons */
+.google-btn, .apple-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    background: white;
+    cursor: pointer;
+    font-size: 14px;
+    margin-top: 5px;
+    text-decoration: none;
+    color: black;
+    font-weight: bold;
+}
+
+.google-btn img, .apple-btn img {
+    width: 16px;
+    height: 16px;
+}
+
+.google-btn:hover, .apple-btn:hover {
+    background-color: #f0f0f0;
+}
+
+</style>
+
+<body>
+    <div class="container">
+        <div class="card">
+            <div class="logo-container">
+                <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Logo" class="logo">
+            </div>
+            <h2>Welcome to<br><strong>OPTI ANSWER</strong></h2>
+            <form method="POST">
+                <input type="email" name="email" placeholder="Enter your email here" required>
+                <button type="submit">Sign up</button>
+            </form>
+            <p>Already have an account? <a href="#">Login</a></p>
+            <div class="divider">OR</div>
+
+            <a class="google-btn" href="{{ url_for('google.login') }}">
+                <img src="https://developers.google.com/identity/images/g-logo.png" alt="Google"> Continue with Google
+            </a>
+            
+        </div>
+    </div>
+</body>
+</html>

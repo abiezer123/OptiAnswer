@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chatbot with Logo</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+    <link rel="icon" href="{{ url_for('static', filename='images/logo.png') }}" type="image/png">
+
+</head>
+<body>
+    <div class="history-container">
+        <h2>📜 history Chats</h2>
+        <div id="history-box" class="history-box"></div>
+    </div>
+
+
+    <div class="chat-container">
+        
+        <div class="chat-header" id="chat-header">
+            <img src="{{ url_for('static', filename='images/logo.png') }}" alt="logo">
+            <h1>OptiAnswer</h1>
+        </div>
+        <div class="chat-box" id="chat-box">
+            
+        </div>
+        <div class="input-container">
+            <input type="text" id="user-input" placeholder="Type your message..." />
+            <button id="send-btn"> <span class="material-icons">send</span></button>
+            
+        </div>
+    </div>
+
+
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+
+
+</body>
+</html>
