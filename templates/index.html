@@ -151,7 +151,7 @@ a:hover {
                 <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Logo" class="logo">
             </div>
             <h2>Welcome to<br><strong>OPTI ANSWER</strong></h2>
-            <form method="POST" action="{{ url_for('send_otp') }}">
+            <form method="POST" action="{{ url_for('index') }}">
                 <input type="email" name="email" placeholder="Enter your email here" required>
                 <button type="submit">Sign up</button>
             </form>

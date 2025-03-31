@@ -55,9 +55,30 @@ app.register_blueprint(google_bp, url_prefix="/login")
 s = URLSafeTimedSerializer(app.config['SECRET_KEY'])
 
 # Home Page
-@app.route("/")
+@app.route("/", methods=["GET", "POST"])
 def index():
+    if request.method == "POST":
+        email = request.form.get("email")
+        session["email"] = email  # Store email in session
+        return redirect(url_for("signup"))  # Redirect to signup page
     return render_template("index.html")
+
+# Signup route
+@app.route("/signup", methods=["GET", "POST"])
+def signup():
+    if request.method == "POST":
+        email = session.get("email")  # Retrieve email from session
+        username = request.form.get("username")
+        password = request.form.get("password")
+        
+        # Store the email, username, and password in session for later use
+        session["username"] = username
+        session["password"] = password
+        
+        # Redirect to OTP verification page
+        return redirect(url_for("send_otp"))
+    
+    return render_template("signup.html")
 
 # Send OTP Email
 def send_otp_email(to_email, otp):
@@ -66,30 +87,24 @@ def send_otp_email(to_email, otp):
     mail.send(msg)
 
 # Generate OTP and Send Email
-# Inside send_otp route
 @app.route("/send_otp", methods=["POST"])
 def send_otp():
-    email = request.form.get("email")
-    print(f"Sending OTP to: {email}")  # Add this line to debug
-
-    # Generate a random 6-digit OTP
+    email = session.get("email")
+    username = session.get("username")
+    password = session.get("password")
+    
     otp = random.randint(100000, 999999)
+    expiration_time = datetime.now() + timedelta(minutes=10)
 
-    # Store OTP and expiration time in the database
-    expiration_time = datetime.now() + timedelta(minutes=10)  # OTP expires in 10 minutes
     otps.insert_one({"email": email, "otp": otp, "expires_at": expiration_time})
 
-    # Store OTP in session for verification later
-    session["otp"] = otp  # Store OTP in session
-    session["email"] = email
+    session["otp"] = otp
 
-    # Send OTP to the user's email
     send_otp_email(email, otp)
 
     flash("OTP sent to your email. Please check your inbox.", "info")
     return redirect(url_for("verify"))
 
-# OTP Verification Page
 # OTP Verification Page
 @app.route("/verify", methods=["GET", "POST"])
 def verify():
@@ -111,7 +126,6 @@ def verify():
             flash("Invalid OTP. Please try again.", "danger")
 
     return render_template("verify.html")
-
 
 @app.route("/main")
 def main():

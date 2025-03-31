@@ -148,12 +148,13 @@ a:hover {
     <div class="container">
         <div class="card">
             <div class="logo-container">
-                <img src="logo.png" alt="Logo" class="logo">
+                <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Logo" class="logo">
             </div>
-            <h2>Welcome to<br><strong>OPTI ANSWER</strong></h2>
+            <h2>Create Your Account</h2>
             <form method="POST" action="{{ url_for('send_otp') }}">
-                <input type="email" name="email" placeholder="Enter your email here" required>
-                <button type="submit">Sign up</button>
+                  <input type="text" name="username" placeholder="Enter username" required>
+                <input type="password" name="password" placeholder="Enter password" required>
+                <button type="submit">Continue</button>
             </form>
             <p>Already have an account? <a href="#">Login</a></p>
             <div class="divider">OR</div>
