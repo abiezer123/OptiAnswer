@@ -86,42 +86,54 @@ def send_otp_email(to_email, otp):
     msg.body = f"Your OTP code is: {otp}\n\nPlease use this code to verify your email."
     mail.send(msg)
 
-# Generate OTP and Send Email
 @app.route("/send_otp", methods=["POST"])
 def send_otp():
-    email = session.get("email")
-    username = session.get("username")
-    password = session.get("password")
-    
+    email = session.get("email")  # Email from index.html
+    username = request.form.get("username")
+    password = request.form.get("password")
+
+    # Store username and password in session for later use
+    session["username"] = username
+    session["password"] = password
+
+    # Generate OTP
     otp = random.randint(100000, 999999)
     expiration_time = datetime.now() + timedelta(minutes=10)
 
+    # Save OTP in MongoDB for verification
     otps.insert_one({"email": email, "otp": otp, "expires_at": expiration_time})
 
     session["otp"] = otp
 
+    # Send OTP via email
     send_otp_email(email, otp)
 
     flash("OTP sent to your email. Please check your inbox.", "info")
     return redirect(url_for("verify"))
+
 
 # OTP Verification Page
 @app.route("/verify", methods=["GET", "POST"])
 def verify():
     if request.method == "POST":
         entered_otp = request.form.get("otp")
-        
-        if str(session.get("otp")) == entered_otp:  # Use session.get() to avoid KeyError
+
+        if str(session.get("otp")) == entered_otp:  # Compare with session OTP
             flash("OTP verified successfully!", "success")
 
-            # Save the email to the MongoDB 'users' collection
-            email = session.get("email")  # Get the email from the session
-            if email:
-                # Check if the email already exists in the 'users' collection
-                if not users.find_one({"email": email}):
-                    users.insert_one({"email": email})
-            
-            return redirect(url_for("main"))  # Redirect to 'main' route after successful OTP verification
+            # Retrieve email, username, and password from session
+            email = session.get("email")
+            username = session.get("username")
+            password = session.get("password")
+
+            # Insert data into the MongoDB 'users' collection
+            if email and username and password:
+                existing_user = users.find_one({"email": email})
+                if not existing_user:  # If email doesn't already exist
+                    users.insert_one({"email": email, "username": username, "password": password})
+
+            # Redirect to main page or dashboard after successful registration
+            return redirect(url_for("main"))
         else:
             flash("Invalid OTP. Please try again.", "danger")
 
