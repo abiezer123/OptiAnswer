@@ -114,55 +114,45 @@ a:hover {
     text-transform: uppercase;
 }
 
-/* Social Buttons */
-.google-btn, .apple-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-    width: 100%;
-    padding: 10px;
-    border: 1px solid #ccc;
-    border-radius: 5px;
-    background: white;
-    cursor: pointer;
-    font-size: 14px;
-    margin-top: 5px;
-    text-decoration: none;
-    color: black;
-    font-weight: bold;
-}
 
-.google-btn img, .apple-btn img {
-    width: 16px;
-    height: 16px;
-}
-
-.google-btn:hover, .apple-btn:hover {
-    background-color: #f0f0f0;
-}
 
 </style>
 
 <body>
     <div class="container">
         <div class="card">
+
             <div class="logo-container">
                 <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Logo" class="logo">
             </div>
-            <h2>Welcome to<br><strong>OPTI ANSWER</strong></h2>
-            <form method="POST" action="{{ url_for('send_otp') }}">
-                <input type="email" name="email" placeholder="Enter your email here" required>
-                <button type="submit">Sign up</button>
-            </form>
-            <p>Already have an account? <a href="#">Login</a></p>
-            <div class="divider">OR</div>
-
-            <a class="google-btn" href="{{ url_for('google.login') }}">
-                <img src="https://developers.google.com/identity/images/g-logo.png" alt="Google"> Continue with Google
-            </a>
+            <h2></strong>Email Verification</h2>
             
+            <form method="POST" action="{{ url_for('verify') }}">
+                <input type="text" name="otp" placeholder="Enter OTP" required>
+                <button type="submit">Verify OTP</button>
+            </form>
+ 
+            <p>Didn't receive an OTP? <a href="{{ url_for('index') }}">Try again</a></p>
+       
         </div>
     </div>
+
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const form = document.querySelector('form');
+            
+            form.addEventListener('submit', function (e) {
+                const otp = document.querySelector('input[name="otp"]').value;
+
+                // Check if the OTP is valid (Client-side validation)
+                if (otp.length !== 6 || isNaN(otp)) {
+                    alert('Please enter a valid 6-digit OTP.');
+                    e.preventDefault();  // Prevent form submission
+                    return;
+                }
+            });
+        });
+    </script>
 </body>
 </html>

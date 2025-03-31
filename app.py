@@ -1,12 +1,15 @@
 import os
-from flask import Flask, render_template, request, jsonify, redirect, url_for, session
+from flask import Flask, render_template, request, jsonify, redirect, url_for, session, flash
 from flask_dance.contrib.google import make_google_blueprint, google
-import requests
 from pymongo import MongoClient
 from dotenv import load_dotenv
+from flask_mail import Mail, Message
+from itsdangerous import URLSafeTimedSerializer
+import random
 from flask_session import Session
+from datetime import datetime, timedelta
 
-# ✅ Allow OAuth to work over HTTP (For local development only)
+# Allow OAuth to work over HTTP (For local development only)
 os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
 
 # Load environment variables
@@ -22,107 +25,99 @@ app.secret_key = os.getenv("SECRET_KEY", "default_secret_key")
 app.config["SESSION_TYPE"] = "filesystem"
 Session(app)
 
-@app.route("/clear")
-def clear():
-    session.clear()
-    return "Session cleared!"
+# Flask-Mail Setup
+app.config['MAIL_SERVER'] = 'smtp.gmail.com'
+app.config['MAIL_PORT'] = 465
+app.config['MAIL_USE_TLS'] = False
+app.config['MAIL_USE_SSL'] = True
+app.config['MAIL_USERNAME'] = os.getenv("MAIL_USERNAME")
+app.config['MAIL_PASSWORD'] = os.getenv("MAIL_PASSWORD")
+app.config['MAIL_DEFAULT_SENDER'] = os.getenv("MAIL_USERNAME")
+mail = Mail(app)
 
 # 🔗 Connect to MongoDB
 client = MongoClient(os.getenv("MONGO_URI"))
 db = client["chatbot_db"]
 history_collection = db["history"]
 users = db["user"]
+otps = db["otp_verification"]  # New collection for OTP storage
 
-# ✅ Google OAuth setup
+# Google OAuth setup
 google_bp = make_google_blueprint(
     client_id=os.getenv("GOOGLE_CLIENT_ID"),
     client_secret=os.getenv("GOOGLE_CLIENT_SECRET"),
     scope=["openid", "https://www.googleapis.com/auth/userinfo.email", "https://www.googleapis.com/auth/userinfo.profile"],
     redirect_to="google_callback"
 )
-
-
 app.register_blueprint(google_bp, url_prefix="/login")
 
-# 🔍 OpenRouter API Config
-API_URL = "https://openrouter.ai/api/v1/chat/completions"
-API_KEY = os.getenv("OPENROUTER_API_KEY")
+# Setup Serializer for OTP Token
+s = URLSafeTimedSerializer(app.config['SECRET_KEY'])
 
-# 📌 System Message for AI
-system_message = {
-    "role": "system",
-    "content": "Ikaw ay isang kaibigan na handang makinig at magbigay ng suporta. Huwag magbigay ng inpormasyon na hindi kaugnay sa mental health. Maging magiliw at sumagot lamang sa Tagalog. Magbigay ng payo kung nararamdaman mong kailangan ko ito bilang kausap."
-}
-
-# 🏠 Home Page
+# Home Page
 @app.route("/")
 def index():
     return render_template("index.html")
 
-# 🗂 Get Chat History (User-Specific)
-@app.route("/history", methods=["GET"])
-def get_history_chats():
-    if "user" not in session:
-        return jsonify({"error": "User not logged in"}), 401
-    
-    user_email = session["user"]
-    chats = list(history_collection.find({"email": user_email}, {"_id": 0}))  
-    return jsonify({"history": chats})
+# Send OTP Email
+def send_otp_email(to_email, otp):
+    msg = Message("Your OTP Verification Code", recipients=[to_email])
+    msg.body = f"Your OTP code is: {otp}\n\nPlease use this code to verify your email."
+    mail.send(msg)
 
-# 💾 Save Chat (User-Specific)
-@app.route("/save_chat", methods=["POST"])
-def save_chat():
-    if "user" not in session:
-        return jsonify({"error": "User not logged in"}), 401
+# Generate OTP and Send Email
+# Inside send_otp route
+@app.route("/send_otp", methods=["POST"])
+def send_otp():
+    email = request.form.get("email")
+    print(f"Sending OTP to: {email}")  # Add this line to debug
 
-    user_data = request.get_json()
-    message = user_data.get("message", "")
-    bot_reply = user_data.get("reply", "")
+    # Generate a random 6-digit OTP
+    otp = random.randint(100000, 999999)
 
-    if message and bot_reply:
-        history_collection.insert_one({"email": session["user"], "user": message, "bot": bot_reply})
+    # Store OTP and expiration time in the database
+    expiration_time = datetime.now() + timedelta(minutes=10)  # OTP expires in 10 minutes
+    otps.insert_one({"email": email, "otp": otp, "expires_at": expiration_time})
 
-    return jsonify({"status": "saved"})
+    # Store OTP in session for verification later
+    session["otp"] = otp  # Store OTP in session
+    session["email"] = email
 
-# 🤖 Chat with OpenRouter AI
-@app.route("/chat", methods=["POST"])
-def chat():
-    if "user" not in session:
-        return jsonify({"error": "User not logged in"}), 401
+    # Send OTP to the user's email
+    send_otp_email(email, otp)
 
-    user_data = request.get_json()
-    user_message = user_data.get("message", "")
+    flash("OTP sent to your email. Please check your inbox.", "info")
+    return redirect(url_for("verify"))
 
-    # Retrieve user's chat history
-    user_history = list(history_collection.find({"email": session["user"]}, {"_id": 0}))[-4:]
-    conversation_history = [{"role": "user", "content": h["user"]} for h in user_history]
-    conversation_history.append({"role": "user", "content": user_message})
-
-    try:
-        headers = {
-            "Authorization": f"Bearer {API_KEY}",
-            "Content-Type": "application/json"
-        }
-
-        response = requests.post(API_URL, json={
-            "model": "openai/gpt-4o-mini",
-            "messages": [system_message] + conversation_history,
-            "max_tokens": 150,
-            "temperature": 0.8,
-        }, headers=headers)
-
-        data = response.json()
-        bot_reply = data.get("choices", [{}])[0].get("message", {}).get("content", "Nandito ako para makinig. Ano ang nasa isip mo ngayon?")
+# OTP Verification Page
+# OTP Verification Page
+@app.route("/verify", methods=["GET", "POST"])
+def verify():
+    if request.method == "POST":
+        entered_otp = request.form.get("otp")
         
-        history_collection.insert_one({"email": session["user"], "user": user_message, "bot": bot_reply})
+        if str(session.get("otp")) == entered_otp:  # Use session.get() to avoid KeyError
+            flash("OTP verified successfully!", "success")
 
-        return jsonify({"reply": bot_reply})
+            # Save the email to the MongoDB 'users' collection
+            email = session.get("email")  # Get the email from the session
+            if email:
+                # Check if the email already exists in the 'users' collection
+                if not users.find_one({"email": email}):
+                    users.insert_one({"email": email})
+            
+            return redirect(url_for("main"))  # Redirect to 'main' route after successful OTP verification
+        else:
+            flash("Invalid OTP. Please try again.", "danger")
 
-    except Exception as e:
-        print("Error during API request:", e)
-        return jsonify({"reply": "Pasensya na, hindi kita naintindihan. Pwede mo bang ulitin?"})
+    return render_template("verify.html")
 
-# 📢 Google OAuth Callback
+
+@app.route("/main")
+def main():
+    return render_template("main.html")  # Example template
+
+# Google OAuth Callback
 @app.route("/google/callback")
 def google_callback():
     if not google.authorized:
@@ -143,25 +138,18 @@ def google_callback():
     session["user"] = email  
     return redirect(url_for("main"))
 
-# 📢 Google Login Route
+# Google Login Route
 @app.route("/google")
 def google_login():
     session.clear()
     return redirect(url_for("google.login"))
 
-# 🔒 Logout
+# Logout
 @app.route("/logout")
 def logout():
     session.pop("user", None)
     return redirect(url_for("index"))
 
-# 🏡 Main Page
-@app.route('/main')
-def main():
-    if "user" not in session:
-        return redirect(url_for("index"))
-    return render_template('main.html')
-
-# 🚀 Start Flask App
+# Start Flask App
 if __name__ == '__main__':
     app.run(debug=True)
