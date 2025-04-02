@@ -75,20 +75,24 @@ def index():
     return render_template("index.html")
 
 # Signup route
+
 @app.route("/signup", methods=["GET", "POST"])
 def signup():
     if request.method == "POST":
-        email = session.get("email")  # Retrieve email from session
+        # Get data from the form
+        email = request.form.get("email")
         username = request.form.get("username")
         password = request.form.get("password")
-        
-        # Store the email, username, and password in session for later use
-        session["username"] = username
-        session["password"] = password
-        
-        # Redirect to OTP verification page
-        return redirect(url_for("send_otp"))
-    
+
+        # Store email and username in session
+        session["user_email"] = email
+        session["user_name"] = username
+
+        # Save the user to the database
+        users.insert_one({"email": email, "username": username, "password": password})
+
+        return redirect(url_for("main"))
+
     return render_template("signup.html")
 
 # Sign In Route
@@ -98,19 +102,22 @@ def signin():
         username = request.form.get("username")
         password = request.form.get("password")
 
-        # Find the user in the database by username and password
+        # Find user by username and password
         user = users.find_one({"username": username, "password": password})
 
         if user:
-            # Store user information in session
-            session["username"] = user["username"]
-            session["email"] = user["email"]
+            # If user is found, store their email and username in the session
+            session["user_email"] = user["email"]
+            session["user_name"] = user["username"]
+
+            print(f"User logged in: Email = {user['email']}, Username = {user['username']}")
 
             return redirect(url_for("main"))
         else:
-            flash("Invalid username or password. Please try again.", "danger")
+            flash("Invalid username or password.", "danger")
+            return redirect(url_for("signin"))
 
-    return render_template("signin.html") 
+    return render_template("signin.html")
 
 
 # Send OTP Email
@@ -158,6 +165,8 @@ def verify():
             username = session.get("username")
             password = session.get("password")
 
+            print(f"User signed up: Email = {email}, Username = {username}")
+
             # Insert data into the MongoDB 'users' collection
             if email and username and password:
                 existing_user = users.find_one({"email": email})
@@ -174,41 +183,49 @@ def main():
     return render_template("main.html")  # Example template
 
 
-
 @app.route("/google/callback")
 def google_callback():
-    # Check if Google authorization failed (canceled or not authorized)
     if not google.authorized:
-        return redirect(url_for("index"))  # Redirect to the index page for a new attempt.
+        flash("Google sign-in was canceled or failed. Please try again.", "danger")
+        return redirect(url_for("index"))
 
     try:
         # Fetch the user info from Google after successful authorization
         resp = google.get("/oauth2/v2/userinfo")
         user_info = resp.json()
 
-        # Extract the email from the response
+        # Extract the email and username from the response
         email = user_info.get("email", None)
+        username = user_info.get("name", None)  # Google provides the 'name' as the username
 
         if email:
-            # Check if the email already exists in the database
+            # Save email and username to session
+            session["user_email"] = email
+            session["user_name"] = username
+
+            print(f"User logged in: Email = {email}, Username = {username}")
+
+            # Check if the email exists in the database
             existing_user = users.find_one({"email": email})
 
-            if not existing_user:
-                # If the email does not exist, add it to the database
-                users.insert_one({"email": email})
-                
+            if existing_user:
+                # If the user exists, just redirect to the main page
+                return redirect(url_for("main"))
+            else:
+                # If the email doesn't exist in the database, create a new user
+                users.insert_one({"email": email, "username": username})
 
-            # Store the email in the session and redirect to the main page
-            session["user"] = email
-          
-            return redirect(url_for("main"))  # Redirect to the main page after successful sign-in
+                # After saving the new user, redirect to the main page
+                return redirect(url_for("main"))
+
         else:
-           
+            flash("Unable to retrieve email from Google. Please try again.", "danger")
             return redirect(url_for("index"))
 
     except Exception as e:
-        # Handle any errors that occur while fetching user info
-        print("Error fetching user info:", e)
+        print(f"Error fetching user info: {e}")
+        flash("An error occurred during the authentication process. Please try again.", "danger")
+        return redirect(url_for("index"))
 
 # Google Login Route
 @app.route("/google")
@@ -219,8 +236,16 @@ def google_login():
 
 @app.route("/history", methods=["GET"])
 def get_history_chats():
-    chats = list(history_collection.find({}, {"_id": 0}))  # Get all history chats
+    user_email = session.get("user_email")  # Get the email from the session
+    
+    if not user_email:
+        return jsonify({"error": "User is not authenticated."}), 403  # Handle case where user is not logged in
+
+    # Fetch history for the logged-in user
+    chats = list(history_collection.find({"user_id": user_email}, {"_id": 0}))  # Fetch history based on email (user_id)
+
     return jsonify({"history": chats})
+
 
 @app.route("/chat", methods=["POST"])
 def chat():

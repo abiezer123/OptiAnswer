@@ -154,13 +154,22 @@ userInput.addEventListener("keypress", (e) => {
 });
 
 window.onload = () => {
-    addMessage("Kumusta? Nandito ako para makinig at suportahan ka. 💙", "bot");
+    // Retrieve email and username from session
+    const userEmail = sessionStorage.getItem("userEmail");  // Assuming you store email in sessionStorage
+    const username = sessionStorage.getItem("userName");  // Assuming you store username in sessionStorage
 
-    // Load history chats
-    fetch("/history")
+    // Greet the user
+    if (username) {
+        addMessage(`Kumusta, ${username}? Nandito ako para makinig at suportahan ka. 💙`, "bot");
+    } else {
+        addMessage("Kumusta? Nandito ako para makinig at suportahan ka. 💙", "bot");
+    }
+
+    // Load history chats based on the user email
+    fetch(`/history?email=${userEmail}`)
         .then(response => response.json())
         .then(data => {
-            const historyeBox = document.getElementById("history-box");
+            const historyBox = document.getElementById("history-box");
             if (!historyBox) return;
 
             data.history.forEach(chat => {
@@ -168,7 +177,8 @@ window.onload = () => {
                 chatDiv.classList.add("history-item");
                 chatDiv.innerHTML = `<p><strong>You:</strong> ${chat.user}</p>
                                      <p><strong>Bot:</strong> ${chat.bot}</p>`;
-                                     historyBox.appendChild(chatDiv);
+                historyBox.appendChild(chatDiv);
             });
         });
 };
+
