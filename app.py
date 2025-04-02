@@ -151,6 +151,7 @@ def send_otp():
     return redirect(url_for("verify"))
 
 
+
 # OTP Verification Page
 @app.route("/verify", methods=["GET", "POST"])
 def verify():
