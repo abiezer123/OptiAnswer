@@ -141,7 +141,6 @@ def send_otp():
     # Send OTP via email
     send_otp_email(email, otp)
 
-    flash("OTP sent to your email. Please check your inbox.", "info")
     return redirect(url_for("verify"))
 
 
@@ -152,7 +151,7 @@ def verify():
         entered_otp = request.form.get("otp")
 
         if str(session.get("otp")) == entered_otp:  # Compare with session OTP
-            flash("OTP verified successfully!", "success")
+            
 
             # Retrieve email, username, and password from session
             email = session.get("email")
@@ -167,9 +166,7 @@ def verify():
 
             # Redirect to main page or dashboard after successful registration
             return redirect(url_for("main"))
-        else:
-            flash("Invalid OTP. Please try again.", "danger")
-
+        
     return render_template("verify.html")
 
 @app.route("/main")
@@ -182,8 +179,6 @@ def main():
 def google_callback():
     # Check if Google authorization failed (canceled or not authorized)
     if not google.authorized:
-        # This case happens when the user either canceled or didn't authorize
-        flash("Google sign-in was canceled or failed. Please try again.", "danger")
         return redirect(url_for("index"))  # Redirect to the index page for a new attempt.
 
     try:
@@ -201,21 +196,19 @@ def google_callback():
             if not existing_user:
                 # If the email does not exist, add it to the database
                 users.insert_one({"email": email})
-                flash("Email added to the database!", "success")
+                
 
             # Store the email in the session and redirect to the main page
             session["user"] = email
-            flash("Google sign-in successful!", "success")
+          
             return redirect(url_for("main"))  # Redirect to the main page after successful sign-in
         else:
-            # If email is not retrieved from Google
-            flash("Unable to retrieve email from Google. Please try again.", "danger")
+           
             return redirect(url_for("index"))
 
     except Exception as e:
         # Handle any errors that occur while fetching user info
         print("Error fetching user info:", e)
-        flash("An error occurred during the authentication process. Please try again.", "danger")
 
 # Google Login Route
 @app.route("/google")
