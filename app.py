@@ -105,7 +105,7 @@ def signin():
             # Store user information in session
             session["username"] = user["username"]
             session["email"] = user["email"]
-            
+
             return redirect(url_for("main"))
         else:
             flash("Invalid username or password. Please try again.", "danger")
@@ -209,45 +209,57 @@ def get_history_chats():
     chats = list(history_collection.find({}, {"_id": 0}))  # Get all history chats
     return jsonify({"history": chats})
 
-@app.route("/save_chat", methods=["POST"])
-def save_chat():
-    user_data = request.get_json()
-    message = user_data.get("message", "")
-    bot_reply = user_data.get("reply", "")
 
-    if message and bot_reply:
-        print(f"Saving chat: User -> {message}, Bot -> {bot_reply}")  # Debug log
-        result = history_collection.insert_one({"user": message, "bot": bot_reply})
-        print("MongoDB Inserted ID:", result.inserted_id)  # Debug log
-    
-    return jsonify({"status": "saved"})
 @app.route("/chat", methods=["POST"])
 def chat():
-    global conversation_history
+    # Retrieve user data from the request
     user_data = request.get_json()
     user_message = user_data.get("message", "")
-    
-    conversation_history.append({"role": "user", "content": user_message})
-    
-    if len(conversation_history) > 4:
-        conversation_history = conversation_history[-4:]
-    
+
+    # Retrieve the user ID (email) from the session (this assumes the user is logged in)
+    user_id = session.get("email")  # Use email or any other unique identifier
+
+    if not user_id:
+        return jsonify({"error": "User is not authenticated"}), 403  # Handle case where the user is not authenticated
+
     try:
-        response = requests.post("https://openrouter.ai/api/v1/chat/completions", json={
-            "model": "openai/gpt-4o-mini",
-            "messages": [system_message] + conversation_history,
-            "max_tokens": 150,
-            "temperature": 0.8,
-        }, headers={"Authorization": f"Bearer {API_KEY}"})
-        
-        data = response.json()
-        bot_reply = data.get("choices", [{}])[0].get("message", {}).get("content", "Nandito ako para makinig. Ano ang nasa isip mo ngayon?")
+        # Make the API request to the chatbot
+        response = requests.post(
+            "https://openrouter.ai/api/v1/chat/completions", 
+            json={
+                "model": "openai/gpt-4o-mini",
+                "messages": [system_message, {"role": "user", "content": user_message}],
+                "max_tokens": 150,
+                "temperature": 0.8,
+            },
+            headers={"Authorization": f"Bearer {API_KEY}"}
+        )
+
+        # Check if the response is valid (status code 200)
+        if response.status_code == 200:
+            data = response.json()
+            bot_reply = data.get("choices", [{}])[0].get("message", {}).get("content", "Nandito ako para makinig. Ano ang nasa isip mo ngayon?")
+        else:
+            # If the API request fails, return a generic error message
+            bot_reply = "Pasensya na, nagkaroon ng error sa pagkuha ng sagot."
+
     except Exception as e:
+        # Catch any other exceptions that occur during the request
         print("Error during API request:", e)
         bot_reply = "Pasensya na, hindi kita naintindihan. Pwede mo bang ulitin?"
-    
-    return jsonify({"reply": bot_reply})
 
+    # Save the user message and bot reply to the database with the user_id (email)
+    result = history_collection.insert_one({
+        "user_id": user_id,  # Store the user's email (or any other identifier)
+        "user": user_message,  # Store the user's message
+        "bot": bot_reply,  # Store the bot's reply
+        "timestamp": datetime.now()  # Timestamp for the conversation
+    })
+
+    print("MongoDB Inserted ID:", result.inserted_id)  # Debug log
+
+    # Return the bot's response to the user
+    return jsonify({"reply": bot_reply})
 
 # Logout
 @app.route("/logout")
