@@ -18,6 +18,18 @@ body {
     font-family: Arial, sans-serif;
 }
 
+
+
+.flash-danger {
+    color: #d3172a;
+    background-color: beige; /* Red background for errors */
+    padding: 10px;
+    margin-bottom: 15px;
+    border-radius: 5px;
+    font-size: 14px;
+}
+
+
 /* Container Card */
 .container {
     display: flex;
@@ -150,12 +162,29 @@ a:hover {
             <div class="logo-container">
                 <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Logo" class="logo">
             </div>
-            <h2>Welcome to<br><strong>OPTI ANSWER</strong></h2>
-            <form method="POST" action="{{ url_for('index') }}">
-                <input type="email" name="email" placeholder="Enter your email here" required>
-                <button type="submit">Sign up</button>
+
+            <h2><strong>Sign In</h2>
+
+
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    <ul>
+                        {% for category, message in messages %}
+                            <li class="flash-{{ category }}">{{ message }}</li>
+                        {% endfor %}
+                    </ul>
+                {% endif %}
+            {% endwith %}
+
+            <form method="POST" action="{{ url_for('signin') }}">
+                <input type="text" name="username" placeholder="Enter username" required>
+                <input type="password" name="password" placeholder="Enter password" required>
+                <button type="submit">SIGN IN</button>
             </form>
-            <p>Already have an account? <a href="{{ url_for('signin') }}">Login</a></p>
+            
+
+
+            <p>Don't have an account? <a href="{{ url_for('index') }}">Sign Up</a></p>
             <div class="divider">OR</div>
 
             <a class="google-btn" href="{{ url_for('google.login') }}">

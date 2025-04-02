@@ -1,4 +1,5 @@
 import os
+import requests
 from flask import Flask, render_template, request, jsonify, redirect, url_for, session, flash
 from flask_dance.contrib.google import make_google_blueprint, google
 from pymongo import MongoClient
@@ -54,6 +55,16 @@ app.register_blueprint(google_bp, url_prefix="/login")
 # Setup Serializer for OTP Token
 s = URLSafeTimedSerializer(app.config['SECRET_KEY'])
 
+API_KEY = os.getenv("OPENROUTER_API_KEY")
+
+system_message = {
+    "role": "system",
+    "content": "Ikaw ay isang kaibigan na handang makinig at magbigay ng suporta. Huwag magbigay ng inpormasyon na na hindi kaugnay sa mental health. Maging magiliw at sumagot lamang sa Tagalog. Magbigay ng payo kung nararamdaman mong kailangan ko ito bilang kausap."
+}
+
+conversation_history = []
+
+
 # Home Page
 @app.route("/", methods=["GET", "POST"])
 def index():
@@ -79,6 +90,28 @@ def signup():
         return redirect(url_for("send_otp"))
     
     return render_template("signup.html")
+
+# Sign In Route
+@app.route("/signin", methods=["GET", "POST"])
+def signin():
+    if request.method == "POST":
+        username = request.form.get("username")
+        password = request.form.get("password")
+
+        # Find the user in the database by username and password
+        user = users.find_one({"username": username, "password": password})
+
+        if user:
+            # Store user information in session
+            session["username"] = user["username"]
+            session["email"] = user["email"]
+            
+            return redirect(url_for("main"))
+        else:
+            flash("Invalid username or password. Please try again.", "danger")
+
+    return render_template("signin.html") 
+
 
 # Send OTP Email
 def send_otp_email(to_email, otp):
@@ -169,6 +202,52 @@ def google_callback():
 def google_login():
     session.clear()
     return redirect(url_for("google.login"))
+
+
+@app.route("/history", methods=["GET"])
+def get_history_chats():
+    chats = list(history_collection.find({}, {"_id": 0}))  # Get all history chats
+    return jsonify({"history": chats})
+
+@app.route("/save_chat", methods=["POST"])
+def save_chat():
+    user_data = request.get_json()
+    message = user_data.get("message", "")
+    bot_reply = user_data.get("reply", "")
+
+    if message and bot_reply:
+        print(f"Saving chat: User -> {message}, Bot -> {bot_reply}")  # Debug log
+        result = history_collection.insert_one({"user": message, "bot": bot_reply})
+        print("MongoDB Inserted ID:", result.inserted_id)  # Debug log
+    
+    return jsonify({"status": "saved"})
+@app.route("/chat", methods=["POST"])
+def chat():
+    global conversation_history
+    user_data = request.get_json()
+    user_message = user_data.get("message", "")
+    
+    conversation_history.append({"role": "user", "content": user_message})
+    
+    if len(conversation_history) > 4:
+        conversation_history = conversation_history[-4:]
+    
+    try:
+        response = requests.post("https://openrouter.ai/api/v1/chat/completions", json={
+            "model": "openai/gpt-4o-mini",
+            "messages": [system_message] + conversation_history,
+            "max_tokens": 150,
+            "temperature": 0.8,
+        }, headers={"Authorization": f"Bearer {API_KEY}"})
+        
+        data = response.json()
+        bot_reply = data.get("choices", [{}])[0].get("message", {}).get("content", "Nandito ako para makinig. Ano ang nasa isip mo ngayon?")
+    except Exception as e:
+        print("Error during API request:", e)
+        bot_reply = "Pasensya na, hindi kita naintindihan. Pwede mo bang ulitin?"
+    
+    return jsonify({"reply": bot_reply})
+
 
 # Logout
 @app.route("/logout")
