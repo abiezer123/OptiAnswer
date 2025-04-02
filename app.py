@@ -176,31 +176,51 @@ def verify():
 def main():
     return render_template("main.html")  # Example template
 
-# Google OAuth Callback
+
+
 @app.route("/google/callback")
 def google_callback():
+    # Check if Google authorization failed (canceled or not authorized)
     if not google.authorized:
-        return redirect(url_for("google_login"))
+        # This case happens when the user either canceled or didn't authorize
+        flash("Google sign-in was canceled or failed. Please try again.", "danger")
+        return redirect(url_for("index"))  # Redirect to the index page for a new attempt.
 
     try:
+        # Fetch the user info from Google after successful authorization
         resp = google.get("/oauth2/v2/userinfo")
         user_info = resp.json()
+
+        # Extract the email from the response
+        email = user_info.get("email", None)
+
+        if email:
+            # Check if the email already exists in the database
+            existing_user = users.find_one({"email": email})
+
+            if not existing_user:
+                # If the email does not exist, add it to the database
+                users.insert_one({"email": email})
+                flash("Email added to the database!", "success")
+
+            # Store the email in the session and redirect to the main page
+            session["user"] = email
+            flash("Google sign-in successful!", "success")
+            return redirect(url_for("main"))  # Redirect to the main page after successful sign-in
+        else:
+            # If email is not retrieved from Google
+            flash("Unable to retrieve email from Google. Please try again.", "danger")
+            return redirect(url_for("index"))
+
     except Exception as e:
+        # Handle any errors that occur while fetching user info
         print("Error fetching user info:", e)
-        return redirect(url_for("index"))
-
-    email = user_info.get("email", "Unknown")
-
-    if not users.find_one({"email": email}):
-        users.insert_one({"email": email})
-
-    session["user"] = email  
-    return redirect(url_for("main"))
+        flash("An error occurred during the authentication process. Please try again.", "danger")
 
 # Google Login Route
 @app.route("/google")
 def google_login():
-    session.clear()
+    session.clear()  # Clear any existing session
     return redirect(url_for("google.login"))
 
 
@@ -208,7 +228,6 @@ def google_login():
 def get_history_chats():
     chats = list(history_collection.find({}, {"_id": 0}))  # Get all history chats
     return jsonify({"history": chats})
-
 
 @app.route("/chat", methods=["POST"])
 def chat():
