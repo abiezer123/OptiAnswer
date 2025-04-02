@@ -186,7 +186,6 @@ def main():
 @app.route("/google/callback")
 def google_callback():
     if not google.authorized:
-        flash("Google sign-in was canceled or failed. Please try again.", "danger")
         return redirect(url_for("index"))
 
     try:
@@ -219,12 +218,10 @@ def google_callback():
                 return redirect(url_for("main"))
 
         else:
-            flash("Unable to retrieve email from Google. Please try again.", "danger")
             return redirect(url_for("index"))
 
     except Exception as e:
         print(f"Error fetching user info: {e}")
-        flash("An error occurred during the authentication process. Please try again.", "danger")
         return redirect(url_for("index"))
 
 # Google Login Route
