@@ -102,22 +102,19 @@ def signin():
         username = request.form.get("username")
         password = request.form.get("password")
 
-        # Find user by username and password
+        # Find the user in the database by username and password
         user = users.find_one({"username": username, "password": password})
 
         if user:
-            # If user is found, store their email and username in the session
-            session["user_email"] = user["email"]
-            session["user_name"] = user["username"]
-
-            print(f"User logged in: Email = {user['email']}, Username = {user['username']}")
-
+              # Store email and username in session
+            session["user_email"] = user.get("email")
+            session["user_name"] = username
+            
             return redirect(url_for("main"))
         else:
-            flash("Invalid username or password.", "danger")
-            return redirect(url_for("signin"))
+            flash("Invalid username or password. Please try again.", "danger")
 
-    return render_template("signin.html")
+    return render_template("signin.html") 
 
 
 # Send OTP Email
@@ -174,6 +171,9 @@ def verify():
                 if not existing_user:  # If email doesn't already exist
                     users.insert_one({"email": email, "username": username, "password": password})
 
+            session["user_email"] = email
+            session["user_name"] = username
+            
             # Redirect to main page or dashboard after successful registration
             return redirect(url_for("main"))
         
@@ -182,7 +182,6 @@ def verify():
 @app.route("/main")
 def main():
     return render_template("main.html")  # Example template
-
 
 @app.route("/google/callback")
 def google_callback():
@@ -203,7 +202,7 @@ def google_callback():
             session["user_email"] = email
             session["user_name"] = username
 
-            print(f"User logged in: Email = {email}, Username = {username}")
+            print(f"User logged in via Google: Email = {email}, Username = {username}")  # Debug log
 
             # Check if the email exists in the database
             existing_user = users.find_one({"email": email})
@@ -244,7 +243,6 @@ def get_history_chats():
 
     return jsonify({"history": chats})
 
-
 @app.route("/chat", methods=["POST"])
 def chat():
     # Retrieve user data from the request
@@ -252,7 +250,7 @@ def chat():
     user_message = user_data.get("message", "")
 
     # Retrieve the user ID (email) from the session (this assumes the user is logged in)
-    user_id = session.get("email")  # Use email or any other unique identifier
+    user_id = session.get("user_email")  # Use session["user_email"] instead of session["email"]
 
     if not user_id:
         return jsonify({"error": "User is not authenticated"}), 403  # Handle case where the user is not authenticated
@@ -270,12 +268,15 @@ def chat():
             headers={"Authorization": f"Bearer {API_KEY}"}
         )
 
-        # Check if the response is valid (status code 200)
         if response.status_code == 200:
             data = response.json()
-            bot_reply = data.get("choices", [{}])[0].get("message", {}).get("content", "Nandito ako para makinig. Ano ang nasa isip mo ngayon?")
+            choices = data.get("choices", [])
+            
+            if choices and "message" in choices[0]:
+                bot_reply = choices[0]["message"].get("content", "")
+            else:
+                bot_reply = "Nandito ako para makinig. Ano ang nasa isip mo ngayon?"
         else:
-            # If the API request fails, return a generic error message
             bot_reply = "Pasensya na, nagkaroon ng error sa pagkuha ng sagot."
 
     except Exception as e:
@@ -296,11 +297,12 @@ def chat():
     # Return the bot's response to the user
     return jsonify({"reply": bot_reply})
 
-# Logout
-@app.route("/logout")
+
+@app.route("/logout", methods=["GET", "POST"])
 def logout():
-    session.pop("user", None)
-    return redirect(url_for("index"))
+    session.clear()  # Clear the session data
+    return redirect(url_for("index"))  # Redirect to the index page
+
 
 # Start Flask App
 if __name__ == '__main__':

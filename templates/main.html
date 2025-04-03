@@ -15,6 +15,11 @@
         <div id="history-box" class="history-box"></div>
     </div>
 
+    <div class="logout-box">
+    <form action="{{ url_for('logout') }}" method="GET">
+        <button type="submit" id="logout-btn">Logout</button>
+    </form>
+    </div>
 
     <div class="chat-container">
         
@@ -31,8 +36,7 @@
             
         </div>
     </div>
-
-
+    
     <script src="{{ url_for('static', filename='js/script.js') }}"></script>
 
 

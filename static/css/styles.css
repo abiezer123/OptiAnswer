@@ -366,3 +366,29 @@ body {
     border-radius: 5px;
     padding: 10px;
 }
+
+
+.logout-box {
+    position: absolute;  /* Use absolute positioning */
+    bottom: 5px;  /* Position 20px from the bottom */
+    left: 40px;  /* Position 20px from the left */
+    width: auto;   /* Allow natural width */
+    padding: 50px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+#logout-btn {
+    background-color: #ff4d4d;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    font-size: 16px;
+    cursor: pointer;
+    border-radius: 5px;
+}
+
+#logout-btn:hover {
+    background-color: #ff1a1a;
+}
