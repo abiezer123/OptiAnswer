@@ -151,7 +151,6 @@ function addMessageForHistory(content, role) {
     const historyBox = document.getElementById("history-box");
     if (historyBox) {
         historyBox.appendChild(messageElement);
-        historyBox.scrollTop = historyBox.scrollHeight;  // Scroll to the bottom
     }
 
     // Append message to chat box if you're viewing full chat history
@@ -211,12 +210,21 @@ window.onload = async () => {
         console.log("User Email:", userEmail);
         console.log("Session ID:", sessionId);
 
+        
+          // Add the conversation start time at the beginning
+          const startTime = new Date().toLocaleString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+          const startTimeDiv = document.createElement("div");
+          startTimeDiv.classList.add("time-divider");
+          startTimeDiv.innerText = `${startTime}`;
+          chatBox.appendChild(startTimeDiv);
+          
         // Display initial bot message
         if (username) {
             addMessage(`Kumusta, ${username}? Nandito ako para makinig at suportahan ka. 💙`, "bot");
         } else {
             addMessage("Kumusta? Nandito ako para makinig at suportahan ka. 💙", "bot");
         }
+
 
         // Check if both user email and session ID are available
         if (!userEmail || !sessionId) {
@@ -274,25 +282,16 @@ if (historyData.history_summaries && historyData.history_summaries.length > 0) {
             const fullHistoryData = await fullHistoryResponse.json();
         
             let lastTopic = "Bagong usapan"; // default fallback
+            let previousTimestamp = null;
         
             if (fullHistoryData.full_history && fullHistoryData.full_history.length > 0) {
                 recentTopics = [];  // Reset
 
-                fullHistoryData.full_history.forEach((message, index, arr) => {
-                    const userMsg = message.messages[0].content;
-                    const botMsg = message.messages[1].content;
-                
-                    addMessageForHistory(userMsg, "user");
-                    addMessageForHistory(botMsg, "bot");
-                
-                    // Collect last 4 bot replies
-                    if (arr.length - index <= 4) {
-                        recentTopics.push(botMsg);
-                    }
-                });
-                
-               
-        
+                let previousTimestamp = null;
+
+                renderFullChatWithDividers(fullHistoryData.full_history);
+
+         
                 // Use last bot reply as the topic
                 const lastBotReply = fullHistoryData.full_history[fullHistoryData.full_history.length - 1].messages[1].content;
                 lastTopic = lastBotReply.length > 60 ? lastBotReply.substring(0, 60) + "..." : lastBotReply;
@@ -333,5 +332,53 @@ document.getElementById('clear-chat-btn').addEventListener('click', function() {
 });
 
 
+function renderFullChatWithDividers(fullHistory) {
+    chatBox.innerHTML = "";
+    let previousTimestamp = null;
 
+    fullHistory.forEach((message, index) => {
+        const userMsg = message.messages[0].content;
+        const botMsg = message.messages[1].content;
+        const currentTimestamp = new Date(message.timestamp);  // Use timestamp from response
 
+        if (previousTimestamp) {
+            const timeDifference = currentTimestamp - previousTimestamp;
+
+            // More than 24 hours (1 day)
+            if (timeDifference > 24 * 60 * 60 * 1000) {
+                const formattedDate = currentTimestamp.toLocaleString('en-US', {
+                    weekday: 'short', month: 'short', day: 'numeric',
+                    hour: '2-digit', minute: '2-digit', hour12: true
+                });
+                const timeDivider = document.createElement("div");
+                timeDivider.classList.add("time-divider");
+                timeDivider.innerText = `${formattedDate}`;
+                chatBox.appendChild(timeDivider);
+            }
+            // More than a month
+            else if (timeDifference > 30 * 24 * 60 * 60 * 1000) {
+                const formattedDate = currentTimestamp.toLocaleString('en-US', {
+                    month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true
+                });
+                const timeDivider = document.createElement("div");
+                timeDivider.classList.add("time-divider");
+                timeDivider.innerText = `${formattedDate}`;
+                chatBox.appendChild(timeDivider);
+            }
+            // More than 30 minutes (but less than 24 hours)
+            else if (timeDifference > 30 * 60 * 1000) {
+                const timeDivider = document.createElement("div");
+                timeDivider.classList.add("time-divider");
+                timeDivider.innerText = `${currentTimestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+                chatBox.appendChild(timeDivider);
+            }
+        }
+
+        addMessageForHistory(userMsg, "user");
+        addMessageForHistory(botMsg, "bot");
+
+        previousTimestamp = currentTimestamp;
+    });
+
+    chatBox.scrollTop = chatBox.scrollHeight;
+}

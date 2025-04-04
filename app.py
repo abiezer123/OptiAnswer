@@ -290,7 +290,8 @@ def get_session_full_history():
             "messages": [
                 {"role": "user", "content": user_message},
                 {"role": "bot", "content": bot_reply}
-            ]
+            ],
+            "timestamp": history_item.get("timestamp")
         })
 
     return jsonify({"full_history": formatted_history})
