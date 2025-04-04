@@ -9,6 +9,8 @@ from itsdangerous import URLSafeTimedSerializer
 import random
 from flask_session import Session
 from datetime import datetime, timedelta
+from bson import ObjectId
+
 
 # Allow OAuth to work over HTTP (For local development only)
 os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
@@ -232,16 +234,30 @@ def google_login():
 
 
 @app.route("/history", methods=["GET"])
-def get_history_chats():
+def get_user_history():
     user_email = session.get("user_email")  # Get the email from the session
-    
+
     if not user_email:
-        return jsonify({"error": "User is not authenticated."}), 403  # Handle case where user is not logged in
+        return jsonify({"error": "User is not authenticated."}), 403
 
-    # Fetch history for the logged-in user
-    chats = list(history_collection.find({"user_id": user_email}, {"_id": 0}))  # Fetch history based on email (user_id)
+    # Fetch the full conversation history for the logged-in user
+    chat_history = list(history_collection.find({"user_id": user_email}, {"_id": 0}))
 
-    return jsonify({"history": chats})
+    # Format history safely
+    formatted_history = []
+    for history_item in chat_history:
+        bot_reply = history_item.get('bot', "[Walang sagot mula sa bot]")
+        user_message = history_item.get('user', "[Walang user message]")
+
+        formatted_history.append({
+            "bot": bot_reply,
+            "messages": [
+                {"role": "user", "content": user_message},
+                {"role": "bot", "content": bot_reply}
+            ]
+        })
+
+    return jsonify({"history": formatted_history})
 
 @app.route("/chat", methods=["POST"])
 def chat():
@@ -254,6 +270,9 @@ def chat():
 
     if not user_id:
         return jsonify({"error": "User is not authenticated"}), 403  # Handle case where the user is not authenticated
+
+    # Retrieve the session ID from the session (needed for session-based history)
+    session_id = session.get("session_id", str(ObjectId()))  # Use the existing session ID or create a new one
 
     try:
         # Make the API request to the chatbot
@@ -271,7 +290,7 @@ def chat():
         if response.status_code == 200:
             data = response.json()
             choices = data.get("choices", [])
-            
+        
             if choices and "message" in choices[0]:
                 bot_reply = choices[0]["message"].get("content", "")
             else:
@@ -280,23 +299,32 @@ def chat():
             bot_reply = "Pasensya na, nagkaroon ng error sa pagkuha ng sagot."
 
     except Exception as e:
-        # Catch any other exceptions that occur during the request
-        print("Error during API request:", e)
-        bot_reply = "Pasensya na, hindi kita naintindihan. Pwede mo bang ulitin?"
+        print(f"Error making API request: {e}")
+        bot_reply = "Pasensya na, nagkaroon ng error."
 
-    # Save the user message and bot reply to the database with the user_id (email)
-    result = history_collection.insert_one({
-        "user_id": user_id,  # Store the user's email (or any other identifier)
-        "user": user_message,  # Store the user's message
-        "bot": bot_reply,  # Store the bot's reply
-        "timestamp": datetime.now()  # Timestamp for the conversation
-    })
+    # Add both the user's message and bot's response in one document
+    message_doc = {
+        "user_id": user_id,
+        "session_id": session_id,
+        "user": user_message,
+        "bot": bot_reply,
+        "timestamp": datetime.now(),
+    }
 
-    print("MongoDB Inserted ID:", result.inserted_id)  # Debug log
+    # Save the combined message to MongoDB
+    history_collection.insert_one(message_doc)
 
-    # Return the bot's response to the user
     return jsonify({"reply": bot_reply})
 
+
+@app.route("/get_session_data")
+def get_session_data():
+    user_email = session.get("user_email")
+    username = session.get("user_name")
+    return jsonify({
+        "user_email": user_email,
+        "username": username
+    })
 
 @app.route("/logout", methods=["GET", "POST"])
 def logout():

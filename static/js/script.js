@@ -11,6 +11,11 @@ const systemMessage = {
 let conversationHistory = [];
 
 function typeEffect(text, sender, callback) {
+    if (!text) {
+        console.error("Error: 'text' is undefined or null.");
+        return;
+    }
+
     let index = 0;
     const typingSpeed = 50;
 
@@ -55,39 +60,26 @@ function typeEffect(text, sender, callback) {
     }
 }
 
-async function getBotResponse(userMessage) {
-    conversationHistory.push({ role: "user", content: userMessage });
-
-    // Keep only the last 4 messages
-    if (conversationHistory.length > 4) {
-        conversationHistory = conversationHistory.slice(-4);
-    }
-
+async function getBotResponse(message) {
     try {
-        const response = await fetch(API_URL, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-                message: userMessage
-            })
+        const response = await fetch('/chat', {
+            method: 'POST',
+            body: JSON.stringify({ message: message }),
+            headers: { 'Content-Type': 'application/json' }
         });
 
-        const data = await response.json();
-
-        if (data && data.reply) {
-            const botReply = data.reply.trim();
-            conversationHistory.push({ role: "assistant", content: botReply });
-            return botReply;
+        if (response.ok) {
+            const data = await response.json(); // Read the response body only once
+            const botReply = data.reply; // Use the 'reply' property from the response
+            return botReply; // Return the bot reply for further use
         } else {
-            return "Nandito ako para makinig. Ano ang nasa isip mo ngayon?";
+            console.error("Error during API request:", response.statusText);
         }
     } catch (error) {
         console.error("Error during API request:", error);
-        return "Pasensya na, hindi kita naintindihan. Pwede mo bang ulitin?";
     }
 }
+
 
 function addMessage(content, sender) {
     const messageDiv = document.createElement("div");
@@ -117,6 +109,36 @@ function addMessage(content, sender) {
     chatBox.scrollTop = chatBox.scrollHeight;
 }
 
+// Modify addMessageForHistory to apply the same design as addMessage
+function addMessageForHistory(content, role) {
+    const messageElement = document.createElement("div");
+
+    if (role === "user") {
+        messageElement.classList.add("user-msg");  // Use the same class as user messages
+        messageElement.innerText = content;
+    } else if (role === "bot") {
+        const botMsgContainer = document.createElement("div");
+        botMsgContainer.classList.add("bot-msg-container");
+
+        const logoImg = document.createElement("img");
+        logoImg.src = "/static/images/logo.png";
+        logoImg.alt = "Bot Logo";
+        logoImg.classList.add("bot-logo");
+
+        const botMsgBubble = document.createElement("div");
+        botMsgBubble.classList.add("bot-msg");
+        botMsgBubble.innerText = content;
+
+        botMsgContainer.appendChild(logoImg);
+        botMsgContainer.appendChild(botMsgBubble);
+        messageElement.appendChild(botMsgContainer);
+    }
+
+    chatBox.appendChild(messageElement);
+    chatBox.scrollTop = chatBox.scrollHeight;
+}
+
+
 sendBtn.addEventListener("click", async () => {
     const userMessage = userInput.value.trim();
 
@@ -126,23 +148,28 @@ sendBtn.addEventListener("click", async () => {
 
         const botMessage = await getBotResponse(userMessage);
 
-        typeEffect(botMessage, "bot", () => {
-            chatBox.scrollTop = chatBox.scrollHeight;
-        });
+        // Ensure botMessage is not undefined before passing to typeEffect
+        if (botMessage) {
+            typeEffect(botMessage, "bot", () => {
+                chatBox.scrollTop = chatBox.scrollHeight;
+            });
 
-        // Debug: Check if request is being sent
-        console.log("Sending chat to /save_chat:", { message: userMessage, reply: botMessage });
+            // Debug: Check if request is being sent
+            console.log("Sending chat to /save_chat:", { message: userMessage, reply: botMessage });
 
-        // Save chat to MongoDB
-        fetch("/save_chat", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({ message: userMessage, reply: botMessage })
-        }).then(response => response.json())
-          .then(data => console.log("Save chat response:", data))
-          .catch(error => console.error("Error saving chat:", error));
+            // Save chat to MongoDB
+            fetch("/save_chat", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ message: userMessage, reply: botMessage })
+            }).then(response => response.json())
+              .then(data => console.log("Save chat response:", data))
+              .catch(error => console.error("Error saving chat:", error));
+        } else {
+            console.error("Bot response is undefined.");
+        }
     }
 });
 
@@ -153,32 +180,84 @@ userInput.addEventListener("keypress", (e) => {
     }
 });
 
-window.onload = () => {
-    // Retrieve email and username from session
-    const userEmail = sessionStorage.getItem("userEmail");  // Assuming you store email in sessionStorage
-    const username = sessionStorage.getItem("userName");  // Assuming you store username in sessionStorage
+// Load session + history
+window.onload = async () => {
+    try {
+        const response = await fetch("/get_session_data");
+        const data = await response.json();
 
-    // Greet the user
-    if (username) {
-        addMessage(`Kumusta, ${username}? Nandito ako para makinig at suportahan ka. 💙`, "bot");
-    } else {
-        addMessage("Kumusta? Nandito ako para makinig at suportahan ka. 💙", "bot");
-    }
+        const userEmail = data.user_email;
+        const username = data.username;
+        let sessionId = data.session_id || localStorage.getItem("sessionId");
 
-    // Load history chats based on the user email
-    fetch(`/history?email=${userEmail}`)
-        .then(response => response.json())
-        .then(data => {
-            const historyBox = document.getElementById("history-box");
-            if (!historyBox) return;
+        if (!sessionId) {
+            sessionId = crypto.randomUUID();
+            localStorage.setItem("sessionId", sessionId);
+        }
 
-            data.history.forEach(chat => {
+        console.log("Username:", username);
+        console.log("User Email:", userEmail);
+        console.log("Session ID:", sessionId);
+
+        if (username) {
+            addMessage(`Kumusta, ${username}? Nandito ako para makinig at suportahan ka. 💙`, "bot");
+        } else {
+            addMessage("Kumusta? Nandito ako para makinig at suportahan ka. 💙", "bot");
+        }
+
+        if (!userEmail || !sessionId) {
+            console.error("No user session found.");
+            return;
+        }
+
+        const historyResponse = await fetch(`/history?email=${userEmail}&session_id=${sessionId}`);
+        const historyData = await historyResponse.json();
+
+        const historyBox = document.getElementById("history-box");
+        if (!historyBox) return;
+
+        // Display chat history if available
+        if (historyData.history && historyData.history.length > 0) {
+            historyData.history.forEach(historyItem => {
                 const chatDiv = document.createElement("div");
                 chatDiv.classList.add("history-item");
-                chatDiv.innerHTML = `<p><strong>You:</strong> ${chat.user}</p>
-                                     <p><strong>Bot:</strong> ${chat.bot}</p>`;
+
+                // Add bot message
+                const botMessageDiv = document.createElement("div");
+                botMessageDiv.classList.add("bot-history");
+                botMessageDiv.innerHTML = `<strong>Bot:</strong> ${historyItem.bot}`;
+
+                chatDiv.appendChild(botMessageDiv);
+
+                // Add user message if available
+                if (historyItem.user) {
+                    const userMessageDiv = document.createElement("div");
+                    userMessageDiv.classList.add("user-history");
+                    userMessageDiv.innerHTML = `<strong>User:</strong> ${historyItem.user}`;
+                    chatDiv.appendChild(userMessageDiv);
+                }
+
+                // Add an event listener to load the full conversation when clicked
+                chatDiv.addEventListener("click", () => {
+                    chatBox.innerHTML = "";
+
+                    // Add history messages when a history item is clicked
+                    if (historyItem.messages) {
+                        historyItem.messages.forEach(message => {
+                            addMessageForHistory(message.content, message.role);
+                        });
+                    }
+
+                    chatBox.scrollTop = chatBox.scrollHeight;
+                });
+
                 historyBox.appendChild(chatDiv);
             });
-        });
-};
+        } else {
+            historyBox.innerHTML = "<p>No history available.</p>";
+        }
 
+    } catch (error) {
+        console.error("Error loading session or history:", error);
+    }
+};
