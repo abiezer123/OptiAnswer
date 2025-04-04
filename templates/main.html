@@ -11,17 +11,24 @@
 </head>
 <body>
     <div class="history-container">
+        <button id="clear-chat-btn" class="btn btn-warning">
+            <span class="new-chat">
+                <i class="material-icons">chat</i>
+                <span class="tooltip-text">New Chat</span>
+            </span>
+        </button>   
+
         <h2> CHAT HISTORY</h2>
         <div id="history-box" class="history-box"></div>
 
         <div class="logout-box">
             <form action="{{ url_for('logout') }}" method="GET">
-                <button type="submit" id="logout-btn">Logout</button>
+                <button type="submit" id="logout-btn"><i class="material-icons">exit_to_app</i> Logout</button>
             </form>
             </div>
-    
-            <button id="clear-chat-btn" class="btn btn-warning">Refresh</button>
-
+            
+            
+         
     </div>
 
 
