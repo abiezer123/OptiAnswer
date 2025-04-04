@@ -33,7 +33,7 @@ function typeEffect(text, sender, callback) {
 
         const botMsgBubble = document.createElement("div");
         botMsgBubble.classList.add("bot-msg");
-        botMsgBubble.innerText = "";
+        botMsgBubble.innerText = "";  // Start with an empty text for bot message
 
         botMsgContainer.appendChild(logoImg);
         botMsgContainer.appendChild(botMsgBubble);
@@ -44,21 +44,28 @@ function typeEffect(text, sender, callback) {
     }
 
     chatBox.appendChild(messageDiv);
-    chatBox.scrollTop = chatBox.scrollHeight;
 
+    // Scroll to the bottom during typing if the sender is 'bot'
     if (sender === "bot") {
+        let isUserScrolling = chatBox.scrollTop !== chatBox.scrollHeight - chatBox.clientHeight;
+        // Keep track of whether the user is already manually scrolling
+        chatBox.scrollTop = chatBox.scrollHeight;  // Scroll to bottom during typing
+
         const botMsgBubble = messageDiv.querySelector(".bot-msg");
         const typingInterval = setInterval(() => {
-            botMsgBubble.innerText += text.charAt(index);
+            botMsgBubble.innerText += text.charAt(index);  // Add one character at a time
             index++;
-            chatBox.scrollTop = chatBox.scrollHeight;
+
+        
             if (index === text.length) {
                 clearInterval(typingInterval);
-                callback();
+                callback();  // After typing is complete, call the callback
             }
         }, typingSpeed);
     }
 }
+
+
 
 async function getBotResponse(message) {
     try {
@@ -223,8 +230,13 @@ window.onload = async () => {
         // Display session summaries in history-box
 // Display session summaries in history-box
 if (historyData.history_summaries && historyData.history_summaries.length > 0) {
-    // Reverse the history order so the latest history is at the bottom
-    const reversedHistory = historyData.history_summaries.reverse();
+
+    
+    // Sort the history by timestamp to ensure it's ordered correctly
+    const sortedHistory = historyData.history_summaries.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+
+    // Reverse the history if needed to show the latest history at the bottom   
+    const reversedHistory = sortedHistory.reverse();
 
     reversedHistory.forEach(session => {
         const summaryDiv = document.createElement("div");
@@ -270,3 +282,19 @@ if (historyData.history_summaries && historyData.history_summaries.length > 0) {
         console.error("Error loading session or history:", error);
     }
 };
+
+document.getElementById('clear-chat-btn').addEventListener('click', function() {
+    // Send a request to the server to generate a new session_id
+    fetch('/reload-session', {
+        method: 'POST',
+        credentials: 'same-origin',  // To send cookies like session ID along with the request
+    })
+    .then(response => response.json())
+    .then(data => {
+        console.log(data.message);  // For debugging or feedback
+        location.reload();  // Reload the page to reset everything with a new session_id
+    })
+    .catch(error => {
+        console.error('Error:', error);
+    });
+});

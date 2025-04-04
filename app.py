@@ -363,9 +363,17 @@ def get_session_data():
         "username": username
     })
 
+@app.route("/reload-session", methods=["POST"])
+def reload_session():
+    session["session_id"] = str(ObjectId())  # Create a new session_id
+    return jsonify({"message": "New session ID generated."}), 200
+
+
+
 @app.route("/logout", methods=["GET", "POST"])
 def logout():
     session.clear()  # Clear the session data
+    session["session_id"] = str(ObjectId())  
     return redirect(url_for("index"))  # Redirect to the index page
 
 
