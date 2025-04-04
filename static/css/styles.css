@@ -182,6 +182,7 @@ body {
     border-right: 1px solid #ccc;
     box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
     overflow-y: auto;
+    position: relative;
 }
 
 .history-container h2 {
@@ -198,6 +199,7 @@ body {
     max-height: 80vh;
     overflow-y: auto;
     padding: 10px;
+    border-bottom: 1px solid grey;
 }
 
 /* history-item styling */
@@ -233,6 +235,37 @@ body {
     border-radius: 8px;
     box-shadow: 0 0 8px rgba(0, 0, 0, 0.1);
 }
+
+
+.logout-box {
+    position: absolute; /* Use absolute positioning */
+    bottom: 5px; /* Align to the bottom */
+    left: 50%; /* Center horizontally */
+    transform: translateX(-50%); /* Adjust to truly center */
+    width: auto; /* Allow natural width */
+    padding: 20px; /* Adjust padding for spacing */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+   
+}
+
+#logout-btn {
+    background-color: #ff4d4d;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    font-size: 16px;
+    cursor: pointer;
+    border-radius: 5px;
+   
+}
+
+#logout-btn:hover {
+    background-color: #ff1a1a;
+}
+
+
 
 .chat-container {
     flex: 1;
@@ -386,28 +419,3 @@ body {
     padding: 10px;
 }
 
-
-.logout-box {
-    position: absolute;  /* Use absolute positioning */
-    bottom: 5px;  /* Position 20px from the bottom */
-    left: 40px;  /* Position 20px from the left */
-    width: auto;   /* Allow natural width */
-    padding: 50px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-}
-
-#logout-btn {
-    background-color: #ff4d4d;
-    color: white;
-    border: none;
-    padding: 10px 20px;
-    font-size: 16px;
-    cursor: pointer;
-    border-radius: 5px;
-}
-
-#logout-btn:hover {
-    background-color: #ff1a1a;
-}

@@ -221,43 +221,49 @@ window.onload = async () => {
         if (!historyBox) return;
 
         // Display session summaries in history-box
-        if (historyData.history_summaries && historyData.history_summaries.length > 0) {
-            historyData.history_summaries.forEach(session => {
-                const summaryDiv = document.createElement("div");
-                summaryDiv.classList.add("history-item");
-        
-                // Add session summary content
-                summaryDiv.innerHTML = `
-                    <p><strong>Session ID:</strong> ${session.session_id}</p>
-                    <p><strong>User:</strong> ${session.last_user_message}</p>
-                    <p><strong>Bot:</strong> ${session.last_bot_reply}</p>
-                    <p><strong>Timestamp:</strong> ${new Date(session.timestamp).toLocaleString()}</p>
-                `;
-        
-                // Add an event listener to load full history when clicked
-                summaryDiv.addEventListener("click", async () => {
-                    chatBox.innerHTML = "";  // Clear current chatbox content
-        
-                    // Fetch full history for the clicked session
-                    const fullHistoryResponse = await fetch(`/session_history?session_id=${session.session_id}`);
-                    const fullHistoryData = await fullHistoryResponse.json();
-        
-                    // Display the full history in the chatbox
-                    if (fullHistoryData.full_history && fullHistoryData.full_history.length > 0) {
-                        fullHistoryData.full_history.forEach(message => {
-                            addMessageForHistory(message.messages[0].content, "user");  // User message
-                            addMessageForHistory(message.messages[1].content, "bot");   // Bot reply
-                        });
-                    }
-        
-                    chatBox.scrollTop = chatBox.scrollHeight;  // Scroll to the bottom of the chatbox
+// Display session summaries in history-box
+if (historyData.history_summaries && historyData.history_summaries.length > 0) {
+    // Reverse the history order so the latest history is at the bottom
+    const reversedHistory = historyData.history_summaries.reverse();
+
+    reversedHistory.forEach(session => {
+        const summaryDiv = document.createElement("div");
+        summaryDiv.classList.add("history-item");
+
+        // Add session summary content
+        summaryDiv.innerHTML = `
+            <p><strong>Bot:</strong> 
+             ${session.last_bot_reply.length > 28 ? session.last_bot_reply.substring(0, 28) + "..." : session.last_bot_reply}
+            </p>
+            <p><strong><em></strong>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;${new Date(session.timestamp).toLocaleTimeString()} &nbsp;&nbsp;${new Date(session.timestamp).toLocaleDateString()}</p>
+
+        `;
+
+        // Add an event listener to load full history when clicked
+        summaryDiv.addEventListener("click", async () => {
+            chatBox.innerHTML = "";  // Clear current chatbox content
+
+            // Fetch full history for the clicked session
+            const fullHistoryResponse = await fetch(`/session_history?session_id=${session.session_id}`);
+            const fullHistoryData = await fullHistoryResponse.json();
+
+            // Display the full history in the chatbox
+            if (fullHistoryData.full_history && fullHistoryData.full_history.length > 0) {
+                fullHistoryData.full_history.forEach(message => {
+                    addMessageForHistory(message.messages[0].content, "user");  // User message
+                    addMessageForHistory(message.messages[1].content, "bot");   // Bot reply
                 });
-        
-                historyBox.appendChild(summaryDiv);  // Append session summary to history box
-            });
-        } else {
-            historyBox.innerHTML = "<p>No history available.</p>";  // No session history available
-        }
+            }
+
+            chatBox.scrollTop = chatBox.scrollHeight;  // Scroll to the bottom of the chatbox
+        });
+
+        historyBox.appendChild(summaryDiv);  // Append session summary to history box
+    });
+} else {
+    historyBox.innerHTML = "<p>No history available.</p>";  // No session history available
+}
+
         
 
     } catch (error) {
