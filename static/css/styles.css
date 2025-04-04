@@ -187,12 +187,14 @@ body {
     left: 0; /* Align it to the left */
 }
 .history-container h2 {
-    margin-top: 70px;
+    
+    margin-top: 20px;
     font-size: 18px;
     text-align: center;
     margin-bottom: 15px;
     color: #333;
     border-bottom: 2px solid #B9EADC;
+    border-top: 2px solid #B9EADC;
     padding-bottom: 5px;
 }
 
@@ -416,7 +418,7 @@ body {
 /* Adjusting the button's margin */
 .btn-warning {
     margin-right: 20px;
-    margin-top: 5px;
+    margin-top: 20px;
     padding: 10px;
     border-radius: 50%;
     border: 0;
@@ -466,3 +468,39 @@ body {
     vertical-align: middle;
     margin-top: -3px;
 }
+
+
+
+/* Profile Image and Heading Container */
+.profile-header {
+    display: flex;              /* Use flexbox for alignment */
+    align-items: center;        /* Vertically align the image */
+    justify-content: flex-end;  /* Align the profile image to the right */
+    position: absolute;         /* Position the header absolutely */
+    top: 10px;                  /* Distance from the top */
+    left: 0px;                /* Distance from the right */
+}
+
+/* Profile Image Container */
+.profile-img-container {
+    text-align: center;  /* Center-align both image and username */
+    margin: 10px;  
+}
+
+/* Profile Image Styling */
+.profile-img {
+    width: 100px;               /* Adjust width as needed */
+    height: 100px;              /* Adjust height to match the width */
+    border-radius: 50%;         /* Make it a circle */
+    object-fit: cover;          /* Ensures the image covers the circle area */
+    border: 2px solid #ddd;     /* Light border around the image */
+    margin-left: 20px;          /* Space between image and heading */
+    box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);  /* Optional: subtle shadow effect */
+}
+
+h3#username-display {
+    margin-top: 10px;     /* Space between the image and the username */
+    font-size: 1.2rem;    /* Adjust font size as needed */
+    color: #333;          /* Choose a color for the username */
+}
+

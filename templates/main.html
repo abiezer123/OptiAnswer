@@ -11,12 +11,10 @@
 </head>
 <body>
     <div class="history-container">
-        <button id="clear-chat-btn" class="btn btn-warning">
-            <span class="new-chat">
-                <i class="material-icons">chat</i>
-                <span class="tooltip-text">New Chat</span>
-            </span>
-        </button>   
+        <div class="profile-img-container">
+            <img id="profile-image" src="{{ session.get('profile_image') or url_for('static', filename='images/user.png') }}" alt="Profile Image" class="profile-img">
+            <h3 id="username-display">Username</h3>
+        </div>
 
         <h2> CHAT HISTORY</h2>
         <div id="history-box" class="history-box"></div>
@@ -35,10 +33,20 @@
 
     <div class="chat-container">
         
+        
+        <button id="clear-chat-btn" class="btn btn-warning">
+            <span class="new-chat">
+                <i class="material-icons">chat</i>
+                <span class="tooltip-text">New Chat</span>
+            </span>
+        </button>   
+        
         <div class="chat-header" id="chat-header">
             <img src="{{ url_for('static', filename='images/logo.png') }}" alt="logo">
             <h1>OptiAnswer</h1>
+
         </div>
+
         <div class="chat-box" id="chat-box">
             
         </div>

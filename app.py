@@ -181,14 +181,27 @@ def verify():
         
     return render_template("verify.html")
 
+from flask import url_for
+
 @app.route("/main")
 def main():
     # Check if session_id exists, create it if not
     if "session_id" not in session:
         session["session_id"] = str(ObjectId())  # Generate a unique session_id for each session
 
-    # Continue rendering the main page
-    return render_template("main.html")
+    # Fetch user profile image from MongoDB
+    user_email = session.get("user_email")
+    
+    if user_email:
+        user = users.find_one({"email": user_email})  # Fetch the user from the database using the email from session
+        if user and user.get("profile_image"):
+            profile_image_url = user["profile_image"]  # Get the profile image from user document
+        else:
+            profile_image_url = None  # If no profile image, set to None
+    else:
+        profile_image_url = None  # If no email in session, set to None
+
+    return render_template("main.html", profile_image=profile_image_url)
 
 @app.route("/google/callback")
 def google_callback():
@@ -203,23 +216,26 @@ def google_callback():
         # Extract the email and username from the response
         email = user_info.get("email", None)
         username = user_info.get("name", None)  # Google provides the 'name' as the username
+        profile_image_url = user_info.get("picture", None)
 
         if email:
             # Save email and username to session
             session["user_email"] = email
             session["user_name"] = username
+            session["profile_image"] = profile_image_url
 
             print(f"User logged in via Google: Email = {email}, Username = {username}")  # Debug log
 
             # Check if the email exists in the database
             existing_user = users.find_one({"email": email})
+            {"$set": {"profile_image": profile_image_url}} 
 
             if existing_user:
                 # If the user exists, just redirect to the main page
                 return redirect(url_for("main"))
             else:
                 # If the email doesn't exist in the database, create a new user
-                users.insert_one({"email": email, "username": username})
+                users.insert_one({"email": email, "username": username, "profile_image": profile_image_url})
 
                 # After saving the new user, redirect to the main page
                 return redirect(url_for("main"))

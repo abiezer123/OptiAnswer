@@ -193,6 +193,8 @@ userInput.addEventListener("keypress", (e) => {
 
 window.onload = async () => {
     try {
+
+        
         const response = await fetch("/get_session_data");
         const data = await response.json();
 
@@ -210,6 +212,10 @@ window.onload = async () => {
         console.log("User Email:", userEmail);
         console.log("Session ID:", sessionId);
 
+        const usernameDisplay = document.getElementById("username-display");
+        if (username && usernameDisplay) {
+            usernameDisplay.innerText = `${username}`;  // Set the username
+        }
         
           // Add the conversation start time at the beginning
           const startTime = new Date().toLocaleString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
@@ -298,6 +304,7 @@ if (historyData.history_summaries && historyData.history_summaries.length > 0) {
             }
         
             chatBox.scrollTop = chatBox.scrollHeight;
+
         
         });
         
