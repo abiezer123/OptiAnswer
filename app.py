@@ -183,7 +183,12 @@ def verify():
 
 @app.route("/main")
 def main():
-    return render_template("main.html")  # Example template
+    # Check if session_id exists, create it if not
+    if "session_id" not in session:
+        session["session_id"] = str(ObjectId())  # Generate a unique session_id for each session
+
+    # Continue rendering the main page
+    return render_template("main.html")
 
 @app.route("/google/callback")
 def google_callback():
@@ -240,12 +245,43 @@ def get_user_history():
     if not user_email:
         return jsonify({"error": "User is not authenticated."}), 403
 
-    # Fetch the full conversation history for the logged-in user
-    chat_history = list(history_collection.find({"user_id": user_email}, {"_id": 0}))
+    # Fetch the latest message from each session for the user
+    pipeline = [
+        {"$match": {"user_id": user_email}},  # Match the user based on email
+        {"$sort": {"timestamp": -1}},  # Sort by timestamp to get most recent messages
+        {"$group": {
+            "_id": "$session_id",  # Group by session_id
+            "latest_message": {"$first": "$$ROOT"}  # Get the latest message for each session
+        }},
+        {"$project": {
+            "_id": 0,
+            "session_id": "$_id",
+            "last_user_message": "$latest_message.user",
+            "last_bot_reply": "$latest_message.bot",
+            "timestamp": "$latest_message.timestamp"
+        }}
+    ]
+    
+    session_summaries = list(history_collection.aggregate(pipeline))
 
-    # Format history safely
+    return jsonify({"history_summaries": session_summaries})
+
+@app.route("/session_history", methods=["GET"])
+def get_session_full_history():
+    user_email = session.get("user_email")  # Get the email from the session
+    session_id = request.args.get("session_id")  # Get the session_id from the query parameters
+
+    if not user_email:
+        return jsonify({"error": "User is not authenticated."}), 403
+    
+    if not session_id:
+        return jsonify({"error": "Session ID is required."}), 400
+
+    # Fetch the full history for the given session_id
+    full_history = list(history_collection.find({"user_id": user_email, "session_id": session_id}, {"_id": 0}))
+
     formatted_history = []
-    for history_item in chat_history:
+    for history_item in full_history:
         bot_reply = history_item.get('bot', "[Walang sagot mula sa bot]")
         user_message = history_item.get('user', "[Walang user message]")
 
@@ -257,7 +293,8 @@ def get_user_history():
             ]
         })
 
-    return jsonify({"history": formatted_history})
+    return jsonify({"full_history": formatted_history})
+
 
 @app.route("/chat", methods=["POST"])
 def chat():
@@ -272,7 +309,7 @@ def chat():
         return jsonify({"error": "User is not authenticated"}), 403  # Handle case where the user is not authenticated
 
     # Retrieve the session ID from the session (needed for session-based history)
-    session_id = session.get("session_id", str(ObjectId()))  # Use the existing session ID or create a new one
+    session_id = session.get("session_id") # Use the existing session ID or create a new one
 
     try:
         # Make the API request to the chatbot

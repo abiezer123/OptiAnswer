@@ -114,9 +114,11 @@ function addMessageForHistory(content, role) {
     const messageElement = document.createElement("div");
 
     if (role === "user") {
+        // User message
         messageElement.classList.add("user-msg");  // Use the same class as user messages
         messageElement.innerText = content;
     } else if (role === "bot") {
+        // Bot message
         const botMsgContainer = document.createElement("div");
         botMsgContainer.classList.add("bot-msg-container");
 
@@ -134,9 +136,21 @@ function addMessageForHistory(content, role) {
         messageElement.appendChild(botMsgContainer);
     }
 
-    chatBox.appendChild(messageElement);
-    chatBox.scrollTop = chatBox.scrollHeight;
+    // Append message to chat box (or history-box)
+    const historyBox = document.getElementById("history-box");
+    if (historyBox) {
+        historyBox.appendChild(messageElement);
+        historyBox.scrollTop = historyBox.scrollHeight;  // Scroll to the bottom
+    }
+
+    // Append message to chat box if you're viewing full chat history
+    const chatBox = document.getElementById("chat-box");
+    if (chatBox) {
+        chatBox.appendChild(messageElement);
+        chatBox.scrollTop = chatBox.scrollHeight;
+    }
 }
+
 
 
 sendBtn.addEventListener("click", async () => {
@@ -154,19 +168,6 @@ sendBtn.addEventListener("click", async () => {
                 chatBox.scrollTop = chatBox.scrollHeight;
             });
 
-            // Debug: Check if request is being sent
-            console.log("Sending chat to /save_chat:", { message: userMessage, reply: botMessage });
-
-            // Save chat to MongoDB
-            fetch("/save_chat", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({ message: userMessage, reply: botMessage })
-            }).then(response => response.json())
-              .then(data => console.log("Save chat response:", data))
-              .catch(error => console.error("Error saving chat:", error));
         } else {
             console.error("Bot response is undefined.");
         }
@@ -180,7 +181,6 @@ userInput.addEventListener("keypress", (e) => {
     }
 });
 
-// Load session + history
 window.onload = async () => {
     try {
         const response = await fetch("/get_session_data");
@@ -190,6 +190,7 @@ window.onload = async () => {
         const username = data.username;
         let sessionId = data.session_id || localStorage.getItem("sessionId");
 
+        // If no session ID, generate a new one and store in localStorage
         if (!sessionId) {
             sessionId = crypto.randomUUID();
             localStorage.setItem("sessionId", sessionId);
@@ -199,63 +200,65 @@ window.onload = async () => {
         console.log("User Email:", userEmail);
         console.log("Session ID:", sessionId);
 
+        // Display initial bot message
         if (username) {
             addMessage(`Kumusta, ${username}? Nandito ako para makinig at suportahan ka. 💙`, "bot");
         } else {
             addMessage("Kumusta? Nandito ako para makinig at suportahan ka. 💙", "bot");
         }
 
+        // Check if both user email and session ID are available
         if (!userEmail || !sessionId) {
             console.error("No user session found.");
             return;
         }
 
-        const historyResponse = await fetch(`/history?email=${userEmail}&session_id=${sessionId}`);
+        // Fetch session history summaries
+        const historyResponse = await fetch(`/history`);
         const historyData = await historyResponse.json();
 
         const historyBox = document.getElementById("history-box");
         if (!historyBox) return;
 
-        // Display chat history if available
-        if (historyData.history && historyData.history.length > 0) {
-            historyData.history.forEach(historyItem => {
-                const chatDiv = document.createElement("div");
-                chatDiv.classList.add("history-item");
-
-                // Add bot message
-                const botMessageDiv = document.createElement("div");
-                botMessageDiv.classList.add("bot-history");
-                botMessageDiv.innerHTML = `<strong>Bot:</strong> ${historyItem.bot}`;
-
-                chatDiv.appendChild(botMessageDiv);
-
-                // Add user message if available
-                if (historyItem.user) {
-                    const userMessageDiv = document.createElement("div");
-                    userMessageDiv.classList.add("user-history");
-                    userMessageDiv.innerHTML = `<strong>User:</strong> ${historyItem.user}`;
-                    chatDiv.appendChild(userMessageDiv);
-                }
-
-                // Add an event listener to load the full conversation when clicked
-                chatDiv.addEventListener("click", () => {
-                    chatBox.innerHTML = "";
-
-                    // Add history messages when a history item is clicked
-                    if (historyItem.messages) {
-                        historyItem.messages.forEach(message => {
-                            addMessageForHistory(message.content, message.role);
+        // Display session summaries in history-box
+        if (historyData.history_summaries && historyData.history_summaries.length > 0) {
+            historyData.history_summaries.forEach(session => {
+                const summaryDiv = document.createElement("div");
+                summaryDiv.classList.add("history-item");
+        
+                // Add session summary content
+                summaryDiv.innerHTML = `
+                    <p><strong>Session ID:</strong> ${session.session_id}</p>
+                    <p><strong>User:</strong> ${session.last_user_message}</p>
+                    <p><strong>Bot:</strong> ${session.last_bot_reply}</p>
+                    <p><strong>Timestamp:</strong> ${new Date(session.timestamp).toLocaleString()}</p>
+                `;
+        
+                // Add an event listener to load full history when clicked
+                summaryDiv.addEventListener("click", async () => {
+                    chatBox.innerHTML = "";  // Clear current chatbox content
+        
+                    // Fetch full history for the clicked session
+                    const fullHistoryResponse = await fetch(`/session_history?session_id=${session.session_id}`);
+                    const fullHistoryData = await fullHistoryResponse.json();
+        
+                    // Display the full history in the chatbox
+                    if (fullHistoryData.full_history && fullHistoryData.full_history.length > 0) {
+                        fullHistoryData.full_history.forEach(message => {
+                            addMessageForHistory(message.messages[0].content, "user");  // User message
+                            addMessageForHistory(message.messages[1].content, "bot");   // Bot reply
                         });
                     }
-
-                    chatBox.scrollTop = chatBox.scrollHeight;
+        
+                    chatBox.scrollTop = chatBox.scrollHeight;  // Scroll to the bottom of the chatbox
                 });
-
-                historyBox.appendChild(chatDiv);
+        
+                historyBox.appendChild(summaryDiv);  // Append session summary to history box
             });
         } else {
-            historyBox.innerHTML = "<p>No history available.</p>";
+            historyBox.innerHTML = "<p>No history available.</p>";  // No session history available
         }
+        
 
     } catch (error) {
         console.error("Error loading session or history:", error);
