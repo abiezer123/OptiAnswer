@@ -298,26 +298,36 @@ def get_session_full_history():
 
 @app.route("/chat", methods=["POST"])
 def chat():
-    # Retrieve user data from the request
     user_data = request.get_json()
     user_message = user_data.get("message", "")
+    recent_topics = user_data.get("recent_topics", [])  # ← NEW: Get the recent topics if sent
 
-    # Retrieve the user ID (email) from the session (this assumes the user is logged in)
-    user_id = session.get("user_email")  # Use session["user_email"] instead of session["email"]
+    user_id = session.get("user_email")
+    session_id = session.get("session_id")
 
     if not user_id:
-        return jsonify({"error": "User is not authenticated"}), 403  # Handle case where the user is not authenticated
+        return jsonify({"error": "User is not authenticated"}), 403
 
-    # Retrieve the session ID from the session (needed for session-based history)
-    session_id = session.get("session_id") # Use the existing session ID or create a new one
+    # 🧠 Build conversation messages
+    messages = [system_message]
+
+    # If recent topics are provided, inject them into context
+    if recent_topics:
+        for topic in recent_topics:
+            messages.append({
+                "role": "assistant",
+                "content": topic
+            })
+
+    # Then add the latest user input
+    messages.append({"role": "user", "content": user_message})
 
     try:
-        # Make the API request to the chatbot
         response = requests.post(
-            "https://openrouter.ai/api/v1/chat/completions", 
+            "https://openrouter.ai/api/v1/chat/completions",
             json={
                 "model": "openai/gpt-4o-mini",
-                "messages": [system_message, {"role": "user", "content": user_message}],
+                "messages": messages,
                 "max_tokens": 150,
                 "temperature": 0.8,
             },
@@ -327,7 +337,6 @@ def chat():
         if response.status_code == 200:
             data = response.json()
             choices = data.get("choices", [])
-        
             if choices and "message" in choices[0]:
                 bot_reply = choices[0]["message"].get("content", "")
             else:
@@ -339,7 +348,7 @@ def chat():
         print(f"Error making API request: {e}")
         bot_reply = "Pasensya na, nagkaroon ng error."
 
-    # Add both the user's message and bot's response in one document
+    # Save the conversation to MongoDB
     message_doc = {
         "user_id": user_id,
         "session_id": session_id,
@@ -347,11 +356,10 @@ def chat():
         "bot": bot_reply,
         "timestamp": datetime.now(),
     }
-
-    # Save the combined message to MongoDB
     history_collection.insert_one(message_doc)
 
     return jsonify({"reply": bot_reply})
+
 
 
 @app.route("/get_session_data")
@@ -367,6 +375,19 @@ def get_session_data():
 def reload_session():
     session["session_id"] = str(ObjectId())  # Create a new session_id
     return jsonify({"message": "New session ID generated."}), 200
+
+
+@app.route("/set_session", methods=["POST"])
+def set_session():
+    data = request.get_json()
+    new_session_id = data.get("session_id")
+
+    if new_session_id:
+        session["session_id"] = new_session_id  # 🔄 Update the session
+        return jsonify({"message": "Session ID updated successfully"})
+    else:
+        return jsonify({"error": "No session_id provided"}), 400
+
 
 
 

@@ -9,6 +9,7 @@ const systemMessage = {
 };
 
 let conversationHistory = [];
+let recentTopics = []; 
 
 function typeEffect(text, sender, callback) {
     if (!text) {
@@ -71,7 +72,10 @@ async function getBotResponse(message) {
     try {
         const response = await fetch('/chat', {
             method: 'POST',
-            body: JSON.stringify({ message: message }),
+            body: JSON.stringify({
+                message: message,
+                recent_topics: recentTopics.length > 0 ? recentTopics : undefined
+            }),
             headers: { 'Content-Type': 'application/json' }
         });
 
@@ -254,21 +258,50 @@ if (historyData.history_summaries && historyData.history_summaries.length > 0) {
         // Add an event listener to load full history when clicked
         summaryDiv.addEventListener("click", async () => {
             chatBox.innerHTML = "";  // Clear current chatbox content
-
+        
+            const newSessionId = session.session_id;
+            localStorage.setItem("sessionId", newSessionId);  // Set new sessionId
+        
+            // Optionally notify server of new session switch (requires /set_session route in Flask)
+            await fetch("/set_session", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ session_id: newSessionId })
+            });
+        
             // Fetch full history for the clicked session
-            const fullHistoryResponse = await fetch(`/session_history?session_id=${session.session_id}`);
+            const fullHistoryResponse = await fetch(`/session_history?session_id=${newSessionId}`);
             const fullHistoryData = await fullHistoryResponse.json();
-
-            // Display the full history in the chatbox
+        
+            let lastTopic = "Bagong usapan"; // default fallback
+        
             if (fullHistoryData.full_history && fullHistoryData.full_history.length > 0) {
-                fullHistoryData.full_history.forEach(message => {
-                    addMessageForHistory(message.messages[0].content, "user");  // User message
-                    addMessageForHistory(message.messages[1].content, "bot");   // Bot reply
-                });
-            }
+                recentTopics = [];  // Reset
 
-            chatBox.scrollTop = chatBox.scrollHeight;  // Scroll to the bottom of the chatbox
+                fullHistoryData.full_history.forEach((message, index, arr) => {
+                    const userMsg = message.messages[0].content;
+                    const botMsg = message.messages[1].content;
+                
+                    addMessageForHistory(userMsg, "user");
+                    addMessageForHistory(botMsg, "bot");
+                
+                    // Collect last 4 bot replies
+                    if (arr.length - index <= 4) {
+                        recentTopics.push(botMsg);
+                    }
+                });
+                
+               
+        
+                // Use last bot reply as the topic
+                const lastBotReply = fullHistoryData.full_history[fullHistoryData.full_history.length - 1].messages[1].content;
+                lastTopic = lastBotReply.length > 60 ? lastBotReply.substring(0, 60) + "..." : lastBotReply;
+            }
+        
+            chatBox.scrollTop = chatBox.scrollHeight;
+        
         });
+        
 
         historyBox.appendChild(summaryDiv);  // Append session summary to history box
     });
@@ -298,3 +331,7 @@ document.getElementById('clear-chat-btn').addEventListener('click', function() {
         console.error('Error:', error);
     });
 });
+
+
+
+
