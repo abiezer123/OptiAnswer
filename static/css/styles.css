@@ -186,6 +186,8 @@ body {
     top: 0; /* Align it at the top */
     left: 0; /* Align it to the left */
 }
+
+/*
 .history-container h2 {
     
     margin-top: 20px;
@@ -197,10 +199,11 @@ body {
     border-top: 2px solid #B9EADC;
     padding-bottom: 5px;
 }
+/*
 
 /* history-box styling */
 .history-box {
-    max-height: 65%;
+    max-height: 58%;
     overflow-y: auto;
     padding: 10px;
 }
