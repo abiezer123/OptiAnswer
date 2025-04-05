@@ -306,8 +306,7 @@ def get_session_full_history():
             "messages": [
                 {"role": "user", "content": user_message},
                 {"role": "bot", "content": bot_reply}
-            ],
-            "timestamp": history_item.get("timestamp")
+            ]
         })
 
     return jsonify({"full_history": formatted_history})
@@ -315,9 +314,10 @@ def get_session_full_history():
 
 @app.route("/chat", methods=["POST"])
 def chat():
-    user_data = request.get_json()
-    user_message = user_data.get("message", "")
-    recent_topics = user_data.get("recent_topics", [])  # ← NEW: Get the recent topics if sent
+    data = request.get_json()
+    message = data.get("message")
+    recent_topics = data.get("recent_topics", [])
+
 
     user_id = session.get("user_email")
     session_id = session.get("session_id")
@@ -337,7 +337,7 @@ def chat():
             })
 
     # Then add the latest user input
-    messages.append({"role": "user", "content": user_message})
+    messages.append({"role": "user", "content": message})
 
     try:
         response = requests.post(
@@ -369,7 +369,7 @@ def chat():
     message_doc = {
         "user_id": user_id,
         "session_id": session_id,
-        "user": user_message,
+        "user": message,
         "bot": bot_reply,
         "timestamp": datetime.now(),
     }

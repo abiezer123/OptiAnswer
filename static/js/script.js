@@ -75,6 +75,7 @@ async function getBotResponse(message) {
             body: JSON.stringify({
                 message: message,
                 recent_topics: recentTopics.length > 0 ? recentTopics : undefined
+
             }),
             headers: { 'Content-Type': 'application/json' }
         });
@@ -174,8 +175,18 @@ sendBtn.addEventListener("click", async () => {
 
         // Ensure botMessage is not undefined before passing to typeEffect
         if (botMessage) {
-            typeEffect(botMessage, "bot", () => {
-                chatBox.scrollTop = chatBox.scrollHeight;
+   // Append as a conversational pair (user + bot summary)
+        const topicPair = `User: ${userMessage} | Bot: ${botMessage}`;
+        recentTopics.push(topicPair);
+        if (recentTopics.length > 4) {
+            recentTopics.shift(); // ✅ Keeps only last 4
+        }
+   
+
+        console.log("📌 Recent Topics (User+Bot):", recentTopics);
+
+        typeEffect(botMessage, "bot", () => {
+       chatBox.scrollTop = chatBox.scrollHeight;
             });
 
         } else {
@@ -208,9 +219,11 @@ window.onload = async () => {
             localStorage.setItem("sessionId", sessionId);
         }
 
+        /* for debugging
         console.log("Username:", username);
         console.log("User Email:", userEmail);
         console.log("Session ID:", sessionId);
+        */ 
 
         const usernameDisplay = document.getElementById("username-display");
         if (username && usernameDisplay) {
@@ -293,14 +306,25 @@ if (historyData.history_summaries && historyData.history_summaries.length > 0) {
             if (fullHistoryData.full_history && fullHistoryData.full_history.length > 0) {
                 recentTopics = [];  // Reset
 
+                const history = fullHistoryData.full_history;
+                const lastFour = history.slice(-4);
+
+                lastFour.forEach(entry => {
+                    const userMsg = entry.messages[0].content;
+                    const botMsg = entry.messages[1].content;
+                    recentTopics.push(`User: ${userMsg} | Bot: ${botMsg}`);
+                });
+
+                console.log("🔄 Recent topics updated from history:", recentTopics);
                 let previousTimestamp = null;
 
                 renderFullChatWithDividers(fullHistoryData.full_history);
 
          
                 // Use last bot reply as the topic
-                const lastBotReply = fullHistoryData.full_history[fullHistoryData.full_history.length - 1].messages[1].content;
+                const lastBotReply = history[history.length - 1].messages[1].content;
                 lastTopic = lastBotReply.length > 60 ? lastBotReply.substring(0, 60) + "..." : lastBotReply;
+
             }
         
             chatBox.scrollTop = chatBox.scrollHeight;
